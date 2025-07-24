@@ -9,7 +9,6 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        git branch: 'main', // change to 'dev' or 'master' if needed
         git credentialsId: 'git-creds', url: 'https://github.com/reddyrajender/multi-env-infra.git'
       }
     }
