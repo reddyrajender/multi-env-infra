@@ -1,0 +1,50 @@
+pipeline {
+  agent any
+  environment {
+    AWS_REGION = 'us-east-1'
+  }
+  parameters {
+    string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Choose environment: dev/staging/prod')
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        git credentialsId: 'git-creds', url: 'https://github.com/reddyrajender/multi-env-infra.git'
+      }
+    }
+    stage('Terraform Init') {
+      steps {
+        dir("environments/${params.ENVIRONMENT}") {
+          sh 'terraform init'
+        }
+      }
+    }
+    stage('Terraform Plan') {
+      steps {
+        dir("environments/${params.ENVIRONMENT}") {
+          sh 'terraform plan'
+        }
+      }
+    }
+    stage('Terraform Apply') {
+      when {
+        branch 'main'
+      }
+      steps {
+        dir("environments/${params.ENVIRONMENT}") {
+          sh 'terraform apply -auto-approve'
+        }
+      }
+    }
+    stage('Helm Deploy') {
+      steps {
+        script {
+          sh """
+          aws eks update-kubeconfig --name ${params.ENVIRONMENT}-eks --region ${AWS_REGION}
+          helm upgrade --install ${params.ENVIRONMENT}-app ./helm-charts/app-chart -f ./helm-charts/app-chart/values.yaml
+          """
+        }
+      }
+    }
+  }
+}
